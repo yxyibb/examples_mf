@@ -1,0 +1,12 @@
+Session是Tensorflow为了控制和输出文件的执行的语句。运行session.run()可以得到想要的结果或是要运算的部分。
+
+两种打开方式:
+#1
+sess = tf.Session()
+print(sess.run(product))  #product 是运算的结果
+sess.close()
+
+#2
+with tf.Session() as sess:
+    print(sess.run(product))
+    sess.close()
