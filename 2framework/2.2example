@@ -1,0 +1,47 @@
+简单的阐述 tensorflow 如何用代码来运行我们搭建的结构:
+
+#用到两个库tensorflow numpy
+import tensorflow as tf
+import numpy as np
+
+#create data
+x_data = np.random.rand(100).astype(np.float32)
+y_data = x_data * 0.1 + 0.3
+#
+weights = tf.Variable(tf.random_uniform([1],-1.0,1.0))
+biases = tf.Variable(tf.zeros([1]))
+
+y = weights * x_data + biases
+#loss
+loss = tf.reduce_mean(tf.square(y-y_data))
+
+#optimization
+optimizer = tf.train.GradientDescentOptimizer(0.5)
+train = optimizer.minimize(loss)
+
+#train
+init = tf.global_variables_initializer()
+with tf.Session() as sess:
+    sess.run(init)
+    for step in range(201):
+        sess.run(train)
+        if step % 20 == 0:
+            print (step, sess.run(weights), sess.run(biases))
+
+
+把 y_data = x_data*0.1 + 0.3 想象成 y=Weights * x + biases, 然后神经网络也就是学着把 Weights 变成 0.1, biases 变成 0.3.
+
+结果：
+(0, array([ 0.6133858], dtype=float32), array([ 0.01485487], dtype=float32))
+(20, array([ 0.2429895], dtype=float32), array([ 0.22089881], dtype=float32))
+(40, array([ 0.13978828], dtype=float32), array([ 0.2779893], dtype=float32))
+(60, array([ 0.1110715], dtype=float32), array([ 0.29387531], dtype=float32))
+(80, array([ 0.10308076], dtype=float32), array([ 0.29829574], dtype=float32))
+(100, array([ 0.10085727], dtype=float32), array([ 0.29952577], dtype=float32))
+(120, array([ 0.10023855], dtype=float32), array([ 0.29986805], dtype=float32))
+(140, array([ 0.10006636], dtype=float32), array([ 0.2999633], dtype=float32))
+(160, array([ 0.10001846], dtype=float32), array([ 0.29998979], dtype=float32))
+(180, array([ 0.10000512], dtype=float32), array([ 0.29999718], dtype=float32))
+(200, array([ 0.10000142], dtype=float32), array([ 0.29999924], dtype=float32))
+
+可以看出weights在训练下不断接近0.1，biases不断接近0.3
