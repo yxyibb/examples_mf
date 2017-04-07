@@ -1,0 +1,236 @@
+与 tensorboard 兼容的浏览器是 “Google Chrome”. 使用其他的浏览器不保证所有内容都能正常显示.
+
+学会用 Tensorflow 自带的 tensorboard 去可视化我们所建造出来的神经网络是一个很好的学习理解方式.
+用最直观的流程图告诉你你的神经网络是长怎样，有助于你发现编程中间的问题和疑问。
+
+1可视化神经网络。
+TensorFlow的可视化工具 — tensorboard：通过使用这个工具我们可以很直观的看到整个神经网络的结构、框架。
+
+from __future__ import print_function
+import tensorflow as tf
+
+
+input修改：指定名称，在可视化图层inputs中显示
+xs= tf.placeholder(tf.float32, [None, 1],name='x_in'）
+ys= tf.placeholder(tf.float32, [None, 1],name='y_in')
+
+with tf.name_scope('inputs')可以将xs和ys包含进来，形成一个大的图层，图层的名字就是with tf.name_scope()方法里的参数:
+with tf.name_scope('inputs'):
+    # define placeholder for inputs to network
+    xs = tf.placeholder(tf.float32, [None, 1])
+    ys = tf.placeholder(tf.float32, [None, 1])
+    
+layer:
+def add_layer(inputs, in_size, out_size, activation_function=None):
+    # add one more layer and return the output of this layer
+    with tf.name_scope('layer'):
+        with tf.name_scope('weights'):
+            Weights = tf.Variable(tf.random_normal([in_size, out_size]), name='W')
+        with tf.name_scope('biases'):
+            biases = tf.Variable(tf.zeros([1, out_size]) + 0.1, name='b')
+        with tf.name_scope('Wx_plus_b'):
+            Wx_plus_b = tf.add(tf.matmul(inputs, Weights), biases)
+        if activation_function is None:
+            outputs = Wx_plus_b
+        else:
+            outputs = activation_function(Wx_plus_b, )
+        return outputs
+
+# define placeholder for inputs to network
+with tf.name_scope('inputs'):
+    xs = tf.placeholder(tf.float32, [None, 1], name='x_input')
+    ys = tf.placeholder(tf.float32, [None, 1], name='y_input')
+
+# add hidden layer
+l1 = add_layer(xs, 1, 10, activation_function=tf.nn.relu)
+# add output layer
+prediction = add_layer(l1, 10, 1, activation_function=None)
+
+# the error between prediciton and real data
+with tf.name_scope('loss'):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys - prediction),
+                                        reduction_indices=[1]))
+
+with tf.name_scope('train'):
+    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+#需要使用 tf.summary.FileWriter() (tf.train.SummaryWriter() 这种方式已经在 tf >= 0.12 版本中摒弃) 将上面‘绘画’出的图保存到一个目录中，以方便后期在浏览器中可以浏览。
+#这个方法中的第二个参数需要使用sess.graph,因此我们需要把这句话放在获取session的后面。这里的graph是将前面定义的框架信息收集起来，然后放在logs/目录下面。
+sess = tf.Session()
+
+# tf.train.SummaryWriter soon be deprecated, use following
+if int((tf.__version__).split('.')[1]) < 12 and int((tf.__version__).split('.')[0]) < 1:  # tensorflow version < 0.12
+    writer = tf.train.SummaryWriter('logs/', sess.graph)
+else: # tensorflow version >= 0.12
+    writer = tf.summary.FileWriter("logs/", sess.graph)
+
+# tf.initialize_all_variables() no long valid from
+# 2017-03-02 if using tensorflow >= 0.12
+if int((tf.__version__).split('.')[1]) < 12 and int((tf.__version__).split('.')[0]) < 1:
+    init = tf.initialize_all_variables()
+else:
+    init = tf.global_variables_initializer()
+sess.run(init)
+
+在你的terminal（终端）中 ，使用以下命令：tensorboard --logdir logs
+同时将终端中输出的网址复制到浏览器中，便可以看到之前定义的视图框架了。
+
+2可视化训练过程( biase变化过程)
+制作输入源
+
+由于这节我们观察训练过程中神经网络的变化, 所以首先要添一些模拟数据. Python 的 numpy 工具包可以帮助我们制造一些模拟数据. 所以我们先导入这个工具包:
+
+import tensorflow as tf
+import numpy as np
+
+然后借助 np 中的 np.linespace() 产生随机的数字, 同时为了模拟更加真实我们会添加一些噪声, 这些噪声是通过 np.random.normal() 随机产生的.
+
+ ## make up some data
+ x_data= np.linspace(-1, 1, 300, dtype=np.float32)[:,np.newaxis]
+ noise=  np.random.normal(0, 0.05, x_data.shape).astype(np.float32)
+ y_data= np.square(x_data) -0.5+ noise
+
+在 layer 中为 Weights, biases 设置变化图表
+
+通过上图的观察我们发现每个 layer 后面有有一个数字: layer1 和layer2
+
+于是我们在 add_layer() 方法中添加一个参数 n_layer,用来标识层数, 并且用变量 layer_name 代表其每层的名名称, 代码如下:
+
+def add_layer(
+    inputs , 
+    in_size, 
+    out_size,
+    n_layer, 
+    activation_function=None):
+    ## add one more layer and return the output of this layer
+    layer_name='layer%s'%n_layer  ## define a new var
+    ## and so on ……
+
+接下来,我们层中的Weights设置变化图, tensorflow中提供了tf.histogram_summary()方法,用来绘制图片, 第一个参数是图表的名称, 第二个参数是图表要记录的变量
+
+def add_layer(inputs , 
+            in_size, 
+            out_size,n_layer, 
+            activation_function=None):
+    ## add one more layer and return the output of this layer
+    layer_name='layer%s'%n_layer
+    with tf.name_scope('layer'):
+         with tf.name_scope('weights'):
+              Weights= tf.Variable(tf.random_normal([in_size, out_size]),name='W')
+              # tf.histogram_summary(layer_name+'/weights',Weights)   # tensorflow 0.12 以下版的
+              tf.summary.histogram(layer_name + '/weights', Weights) # tensorflow >= 0.12
+    ##and so no ……
+
+同样的方法我们对biases进行绘制图标:
+
+with tf.name_scope('biases'):
+    biases = tf.Variable(tf.zeros([1,out_size])+0.1, name='b')
+    # tf.histogram_summary(layer_name+'/biase',biases)   # tensorflow 0.12 以下版的
+    tf.summary.histogram(layer_name + '/biases', biases)  # Tensorflow >= 0.12
+
+至于activation_function 可以不绘制. 我们对output 使用同样的方法:
+
+# tf.histogram_summary(layer_name+'/outputs',outputs) # tensorflow 0.12 以下版本
+tf.summary.histogram(layer_name + '/outputs', outputs) # Tensorflow >= 0.12
+
+最终经过我们的修改 , addlayer()方法成为如下的样子:
+
+def add_layer(inputs , 
+              in_size, 
+              out_size,n_layer, 
+              activation_function=None):
+    ## add one more layer and return the output of this layer
+    layer_name='layer%s'%n_layer
+    with tf.name_scope('layer'):
+         with tf.name_scope('weights'):
+              Weights= tf.Variable(tf.random_normal([in_size, out_size]),name='W')
+              # tf.histogram_summary(layer_name+'/weights',Weights)
+              tf.summary.histogram(layer_name + '/weights', Weights) # tensorflow >= 0.12
+
+         with tf.name_scope('biases'):
+              biases = tf.Variable(tf.zeros([1,out_size])+0.1, name='b')
+              # tf.histogram_summary(layer_name+'/biase',biases)
+              tf.summary.histogram(layer_name + '/biases', biases)  # Tensorflow >= 0.12
+
+         with tf.name_scope('Wx_plus_b'):
+              Wx_plus_b = tf.add(tf.matmul(inputs,Weights), biases)
+
+         if activation_function is None:
+            outputs=Wx_plus_b
+         else:
+            outputs= activation_function(Wx_plus_b)
+
+         # tf.histogram_summary(layer_name+'/outputs',outputs)
+         tf.summary.histogram(layer_name + '/outputs', outputs) # Tensorflow >= 0.12
+
+    return outputs
+
+由于我们对addlayer 添加了一个参数, 所以修改之前调用addlayer()函数的地方. 对此处进行修改:
+
+# add hidden layer
+l1= add_layer(xs, 1, 10 ,  activation_function=tf.nn.relu)
+# add output  layer
+prediction= add_layer(l1, 10, 1,  activation_function=None)
+
+添加n_layer参数后, 修改成为 :
+
+# add hidden layer
+l1= add_layer(xs, 1, 10, n_layer=1, activation_function=tf.nn.relu)
+# add output  layer
+prediction= add_layer(l1, 10, 1, n_layer=2, activation_function=None)
+
+设置loss的变化图
+
+Loss 的变化图和之前设置的方法略有不同. loss是在tesnorBorad 的event下面的, 这是由于我们使用的是tf.scalar_summary() 方法.
+观看loss的变化比较重要. 当你的loss呈下降的趋势,说明你的神经网络训练是有效果的.
+
+修改后的代码片段如下：
+
+with tf.name_scope('loss'):
+     loss= tf.reduce_mean(tf.reduce_sum(
+              tf.square(ys- prediction), reduction_indices=[1]))
+     # tf.scalar_summary('loss',loss) # tensorflow < 0.12
+     tf.summary.scalar('loss', loss) # tensorflow >= 0.12
+
+给所有训练图‘合并‘
+
+接下来， 开始合并打包。 tf.merge_all_summaries() 方法会对我们所有的 summaries 合并到一起. 因此在原有代码片段中添加：
+
+sess= tf.Session()
+
+# merged= tf.merge_all_summaries()    # tensorflow < 0.12
+merged = tf.summary.merge_all() # tensorflow >= 0.12
+
+# writer = tf.train.SummaryWriter('logs/', sess.graph)    # tensorflow < 0.12
+writer = tf.summary.FileWriter("logs/", sess.graph) # tensorflow >=0.12
+
+# sess.run(tf.initialize_all_variables()) # tf.initialize_all_variables() # tf 马上就要废弃这种写法
+sess.run(tf.global_variables_initializer())  # 替换成这样就好
+
+训练数据
+
+假定给出了x_data,y_data并且训练1000次.
+
+for i in range(1000):
+   sess.run(train_step, feed_dict={xs:x_data, ys:y_data})
+
+以上这些仅仅可以记录很绘制出训练的图表， 但是不会记录训练的数据。 为了较为直观显示训练过程中每个参数的变化，我们每隔上50次就记录一次结果 , 同时我们也应注意, merged 也是需要run 才能发挥作用的,所以在for循环中写下：
+
+if i%50 == 0:
+    rs = sess.run(merged,feed_dict={xs:x_data,ys:y_data})
+    writer.add_summary(rs, i)
+
+最后修改后的片段如下：
+
+for i in range(1000):
+   sess.run(train_step, feed_dict={xs:x_data, ys:y_data})
+   if i%50 == 0:
+      rs = sess.run(merged,feed_dict={xs:x_data,ys:y_data})
+      writer.add_summary(rs, i)
+
+在 tensorboard 中查看效果
+
+程序运行完毕之后, 会产生logs目录 , 使用命令 tensorboard --logdir logs
+
+注意: 与 tensorboard 兼容的浏览器是 “Google Chrome”. 使用其他的浏览器不保证所有内容都能正常显示.
+
+
