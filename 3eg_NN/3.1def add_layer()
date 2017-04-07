@@ -1,0 +1,17 @@
+定义一个添加层的函数可以很容易的添加神经层,为之后的添加省下不少时间
+
+神经网络每一层 定义W，b，及激活函数（非线性问题）。若没有激活函数，可以直接输出Wx_plus_b。
+import tensorflow as tf
+def add_layer(inputs, in_size, out_size, activaion_function = None): #定义添加神经层，输入，输入大小，输出大小，激励函数
+
+#随机变量(normal distribution)会比全部为0要好很多，所以我们这里的weights为一个in_size行, out_size列的随机变量矩阵
+    weights = tf.Variable(tf.random_normal([in_size, out_size])) 
+#biases的推荐值不为0，所以我们这里是在0向量的基础上又加了0.1    
+    biases = tf.Variable(tf.zeros([1,out_size]) + 0.1)
+    Wx_plus_b = tf.matmul(inputs,weights) + biases    #biases的推荐值不为0，所以我们这里是在0向量的基础上又加了0.1
+#当activation_function——激励函数为None时，输出就是当前的预测值——Wx_plus_b，不为None时，就把Wx_plus_b传到activation_function()函数中得到输出
+    if activaion_function is None:
+        outputs = Wx_plus_b
+    else:
+        outputs = activaion_function(Wx_plus_b)
+    return outputs
