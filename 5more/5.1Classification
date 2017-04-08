@@ -1,0 +1,47 @@
+使用TensorFlow解决Classification（分类）问题。之前的视频讲解的是Regression (回归)问题。
+分类和回归的区别在于输出变量的类型上。 
+通俗理解定量输出是回归，或者说是连续变量预测； 定性输出是分类，或者说是离散变量预测。
+如预测房价这是一个回归任务； 把东西分成几类, 比如猫狗猪牛，就是一个分类任务。
+
+
+准备数据：MNIST库，为手写数字库分类
+
+import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
+#定义层，直接调用
+def add_layer(inputs, in_size, out_size, activation_function = None):
+    weights = tf.Variable(tf.random_normal([in_size, out_size]))
+    biases = tf.Variable(tf.zeros([1,out_size]) + 0.1)
+    Wx_plus_b = tf.matmul(inputs,weights) + biases
+    if activation_function is None:
+        outputs = Wx_plus_b
+    else:
+        outputs = activation_function(Wx_plus_b)
+    return outputs
+#定义正确率，输出的是分类正确率
+def compute_accuracy(v_xs,v_ys):
+    global prediction
+    y_pre = sess.run(prediction,feed_dict={xs:v_xs})
+    correct_prediction = tf.equal(tf.argmax(y_pre,1),tf.argmax(v_ys,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+    result = sess.run(accuracy, feed_dict={xs:v_xs,ys:v_ys})
+    return result
+#data
+mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+#placeholder
+xs = tf.placeholder(tf.float32, [None,784])
+ys = tf.placeholder(tf.float32, [None,10])
+#NN
+prediction = add_layer(xs, 784, 10, activation_function=tf.nn.softmax)    #NN只有输入层和输出层。softmax适用于做分类的激活函数
+cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))   #交叉熵函数（loss）
+train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)   #train使用梯度下降法
+#run
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+for i in range(1000):
+    # batch = 100
+    batch_xs, batch_ys = mnist.train.next_batch(100) #每次取100张训练，以免太慢 xs[n_samples,n_features],ys[n_samples,n_outputs]
+    sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys})
+    if i % 50 == 0:
+        print(compute_accuracy(mnist.test.images,mnist.test.labels))
